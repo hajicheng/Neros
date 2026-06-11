@@ -1,0 +1,13 @@
+{
+  "source": "skillhub",
+  "baseUrl": "https://lightmake.site",
+  "slug": "superpower",
+  "version": "1.0.0",
+  "installedAt": "2026-06-11T07:08:33.171Z",
+  "files": [
+    "breathing-exercises.md",
+    "setup-calm-reminders.js",
+    "SKILL.md",
+    "_meta.json"
+  ]
+}
