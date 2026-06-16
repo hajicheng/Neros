@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Box, Text, useInput } from "ink";
@@ -106,6 +106,7 @@ export function InputBox({ onSubmit, onCancel, isProcessing, cwd, columns }: Pro
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
   const [addStatus, setAddStatus] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const isInstallingSkill = addStatus?.startsWith("Installing ") ?? false;
 
   const isSkillsCommand = input.trim() === "/skills";
@@ -144,6 +145,7 @@ export function InputBox({ onSubmit, onCancel, isProcessing, cwd, columns }: Pro
     setSkillMode("list");
     setSkillsLoading(true);
     setSkillsError(null);
+    setDeleteStatus(null);
     loadDownloadedSkills(cwd)
       .then((items) => {
         if (cancelled) return;
@@ -250,6 +252,23 @@ export function InputBox({ onSubmit, onCancel, isProcessing, cwd, columns }: Pro
           );
           setSkillMode("closed");
           setInput("");
+          return;
+        }
+        if (ch === "d") {
+          if (isProcessing || skillsLoading) return;
+          const selected = skillOptions[selectedSkillIndex];
+          if (!selected || selected.slug === "__add_more__") return;
+          setDeleteStatus(`Deleting ${selected.name}…`);
+          void rm(selected.path, { recursive: true, force: true })
+            .then(async () => {
+              const updated = await loadDownloadedSkills(cwd);
+              setSkills(updated);
+              setSelectedSkillIndex((prev) => Math.min(prev, updated.length));
+              setDeleteStatus(`Deleted ${selected.name}`);
+            })
+            .catch((err) => {
+              setDeleteStatus(err instanceof Error ? err.message : String(err));
+            });
           return;
         }
       }
@@ -390,7 +409,12 @@ export function InputBox({ onSubmit, onCancel, isProcessing, cwd, columns }: Pro
               {`showing ${firstVisibleSkillIndex + 1}-${firstVisibleSkillIndex + visibleSkillOptions.length} of ${skillOptions.length}`}
             </Text>
           )}
-          <Text dimColor>↑/↓ scroll · PgUp/PgDn jump · Enter choose · Esc close</Text>
+          {deleteStatus && (
+            <Text color={deleteStatus.startsWith("Deleted") ? "green" : undefined}>
+              {truncate(deleteStatus, Math.max(20, columns - 4))}
+            </Text>
+          )}
+          <Text dimColor>↑/↓ scroll · PgUp/PgDn jump · Enter choose · d delete · Esc close</Text>
         </Box>
       )}
 
