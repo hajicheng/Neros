@@ -16,6 +16,9 @@
   },
   "scripts": {
     "dev": "tsx src/entrypoints/cli.ts",
+    "web:dev": "pnpm --filter @neros/web dev",
+    "web:build": "pnpm --filter @neros/web build",
+    "web:typecheck": "pnpm --filter @neros/web typecheck",
     "build": "tsup",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
