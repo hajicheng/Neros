@@ -173,7 +173,7 @@ export function OfficeScene() {
       station.add(mouse)
 
       const chair = new THREE.Group()
-      chair.position.set(-0.08, 0, 1.03)
+      chair.position.set(-0.08, 0.22, 1.03)
       station.add(chair)
       addBox(chair, [0.64, 0.14, 0.58], [0, 0.46, 0], white)
       addBox(chair, [0.64, 0.76, 0.12], [0, 0.86, 0.31], softWhite)
