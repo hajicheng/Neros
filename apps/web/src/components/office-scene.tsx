@@ -3,30 +3,20 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
-import { useAgentList } from '@/stores/app-store'
-
 export function OfficeScene() {
   const mountRef = useRef<HTMLDivElement>(null)
-  const agentCount = useAgentList().length
 
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
 
-    const baseWorkstationCount = 6
-    const workstationCount = baseWorkstationCount + agentCount
-    const columns = 3
-    const rows = Math.ceil(workstationCount / columns)
-    const columnGap = 4
-    const rowGap = 3.75
-    const frustumSize = Math.max(7.2, rows * rowGap + 0.6)
-
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0xf6f6f3)
-    scene.fog = new THREE.Fog(0xf6f6f3, 13, 28 + rows * 3)
+    scene.fog = new THREE.Fog(0xf6f6f3, 13, 26)
 
+    const frustumSize = 8.6
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100)
-    camera.position.set(0, 6.2 + Math.max(0, rows - 2) * 0.5, 8.4 + Math.max(0, rows - 2) * 0.65)
+    camera.position.set(0, 6.2, 8.4)
     camera.lookAt(0, 0.9, 0)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -100,7 +90,7 @@ export function OfficeScene() {
     }
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(26, Math.max(20, rows * rowGap + 8)),
+      new THREE.PlaneGeometry(26, 20),
       new THREE.ShadowMaterial({ color: 0x8f8c82, opacity: 0.16 }),
     )
     floor.rotation.x = -Math.PI / 2
@@ -118,8 +108,8 @@ export function OfficeScene() {
     keyLight.shadow.camera.far = 24
     keyLight.shadow.camera.left = -9
     keyLight.shadow.camera.right = 9
-    keyLight.shadow.camera.top = 8 + Math.max(0, rows - 2) * 1.4
-    keyLight.shadow.camera.bottom = -8 - Math.max(0, rows - 2) * 1.4
+    keyLight.shadow.camera.top = 8
+    keyLight.shadow.camera.bottom = -8
     scene.add(keyLight)
 
     const rimLight = new THREE.DirectionalLight(0xffffff, 1.2)
@@ -173,22 +163,23 @@ export function OfficeScene() {
       station.add(mouse)
 
       const chair = new THREE.Group()
-      chair.position.set(-0.08, 0.22, 1.03)
+      chair.position.set(-0.08, 0, 1.23)
+      chair.scale.set(1.4, 1.4, 1.3)
       station.add(chair)
       addBox(chair, [0.64, 0.14, 0.58], [0, 0.46, 0], white)
       addBox(chair, [0.64, 0.76, 0.12], [0, 0.86, 0.31], softWhite)
       addCylinder(chair, 0.045, 0.48, [0, 0.24, 0], metal, 24)
-      addCylinder(chair, 0.13, 0.055, [0, 0.03, 0], metal, 24)
+      addCylinder(chair, 0.16, 0.065, [0, 0.035, 0], metal, 24)
 
       for (let i = 0; i < 5; i += 1) {
         const angle = (i / 5) * Math.PI * 2
-        const arm = addBox(chair, [0.34, 0.035, 0.05], [0, 0.07, 0], metal)
-        arm.position.x = Math.cos(angle) * 0.16
-        arm.position.z = Math.sin(angle) * 0.16
+        const arm = addBox(chair, [0.44, 0.04, 0.06], [0, 0.07, 0], metal)
+        arm.position.x = Math.cos(angle) * 0.21
+        arm.position.z = Math.sin(angle) * 0.21
         arm.rotation.y = -angle
 
-        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.01, 8, 16), metal)
-        wheel.position.set(Math.cos(angle) * 0.34, 0.035, Math.sin(angle) * 0.34)
+        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.012, 8, 16), metal)
+        wheel.position.set(Math.cos(angle) * 0.43, 0.04, Math.sin(angle) * 0.43)
         wheel.rotation.x = Math.PI / 2
         wheel.rotation.z = angle
         wheel.castShadow = true
@@ -197,11 +188,21 @@ export function OfficeScene() {
       }
     }
 
-    for (let index = 0; index < workstationCount; index += 1) {
-      const row = Math.floor(index / columns)
-      const col = index % columns
-      createWorkstation((col - 1) * columnGap, (row - (rows - 1) / 2) * rowGap)
+    const columnGap = 4.0
+    const rowGap = 3.75
+    for (let row = 0; row < 2; row += 1) {
+      for (let col = 0; col < 3; col += 1) {
+        createWorkstation((col - 1) * columnGap, (row - 0.5) * rowGap)
+      }
     }
+
+    const wallGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(12, 7),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }),
+    )
+    wallGlow.position.set(0, 2.8, -5.4)
+    wallGlow.rotation.x = -0.08
+    scene.add(wallGlow)
 
     const render = () => {
       renderer.render(scene, camera)
@@ -245,7 +246,7 @@ export function OfficeScene() {
 
       renderer.domElement.remove()
     }
-  }, [agentCount])
+  }, [])
 
   return (
     <div

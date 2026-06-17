@@ -446,7 +446,7 @@ function ToolUsePart({
   callId: string
   completion?: { result: unknown; isError: boolean }
 }) {
-  const [showDetails, setShowDetails] = useState(false)
+  const [showDetails, setShowDetails] = useState(Boolean(completion))
   const displayName = getToolDisplayName(toolName)
   const command = isBashToolName(toolName) ? extractCommand(args) : null
   const remainingArgs = command ? omitCommand(args) : args
@@ -481,6 +481,10 @@ function ToolUsePart({
     success: '已完成',
     error: '失败',
   }[state]
+
+  useEffect(() => {
+    if (completion) setShowDetails(true)
+  }, [completion])
 
   const toggleDetails = () => setShowDetails((v) => !v)
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

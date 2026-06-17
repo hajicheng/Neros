@@ -3,3 +3,5 @@ dist/
 .next/
 *.tsbuildinfo
 .env
+.env.local
+.neros-data/

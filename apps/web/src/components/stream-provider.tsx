@@ -23,35 +23,37 @@ export function StreamProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refCount++
 
-    if (!activeSource) {
+    if (!activeSource || activeSource.readyState === EventSource.CLOSED) {
       activeSource = new EventSource('/api/stream')
+    }
 
-      activeSource.onopen = () => {
+    // Fast Refresh can preserve the module-level EventSource while replacing the
+    // store/actions captured by this component, so always bind fresh handlers.
+    activeSource.onopen = () => {
+      setStreamConnected(true)
+    }
+
+    activeSource.onerror = () => {
+      // EventSource 会自动重连，无需我们做事
+      setStreamConnected(false)
+    }
+
+    activeSource.onmessage = (e) => {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(e.data)
+      } catch {
+        return
+      }
+      if (!parsed || typeof parsed !== 'object') return
+
+      const obj = parsed as { type?: string }
+      if (obj.type === 'connected') {
         setStreamConnected(true)
+        return
       }
 
-      activeSource.onerror = () => {
-        // EventSource 会自动重连，无需我们做事
-        setStreamConnected(false)
-      }
-
-      activeSource.onmessage = (e) => {
-        let parsed: unknown
-        try {
-          parsed = JSON.parse(e.data)
-        } catch {
-          return
-        }
-        if (!parsed || typeof parsed !== 'object') return
-
-        const obj = parsed as { type?: string }
-        if (obj.type === 'connected') {
-          setStreamConnected(true)
-          return
-        }
-
-        applyEvent(parsed as StreamEvent)
-      }
+      applyEvent(parsed as StreamEvent)
     }
 
     return () => {
