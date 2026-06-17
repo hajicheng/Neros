@@ -19,7 +19,7 @@ export function OfficeScene() {
     const rows = Math.ceil(workstationCount / columns)
     const columnGap = 4
     const rowGap = 3.75
-    const frustumSize = Math.max(8.6, rows * rowGap + 2.6)
+    const frustumSize = Math.max(7.2, rows * rowGap + 0.6)
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0xf6f6f3)
