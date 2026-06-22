@@ -4,6 +4,13 @@ import { loadAgents, saveAgents, sortAgents } from '@/db/agent-store'
 import type { AgentRow, AppSettingsRow, AttachmentRow, ConversationWithMeta, MessageRow } from '@/db/schema'
 import { buildArtifactContent } from '@/server/artifact-content'
 import {
+  createAttachment,
+  deleteAttachment,
+  findAttachment,
+  listAttachments,
+  resolveAttachments,
+} from '@/server/attachment-store'
+import {
   createArtifactVersion,
   deleteArtifact,
   findArtifact,
@@ -21,7 +28,7 @@ import {
   writeWorkspaceFile,
 } from '@/server/workspace-service'
 import { buildWebAppHtml } from '@/lib/artifact-preview'
-import type { ArtifactContent } from '@/shared/types'
+import type { ArtifactContent, MessagePart } from '@/shared/types'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -35,7 +42,6 @@ const now = () => Date.now()
 let agents: AgentRow[] = loadAgents()
 const conversations: ConversationWithMeta[] = []
 const messagesByConversation = new Map<string, MessageRow[]>()
-const attachmentsByConversation = new Map<string, AttachmentRow[]>()
 
 let settings: AppSettingsRow = {
   id: 'singleton',
@@ -104,7 +110,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return data({ messages: messagesByConversation.get(conversationId) ?? [] })
     }
     if (parts[2] === 'attachments') {
-      return data({ attachments: attachmentsByConversation.get(conversationId) ?? [] })
+      return data({ attachments: listAttachments(conversationId) })
     }
     if (parts[2] === 'pending-writes') {
       return data({ pendingWrites: pendingWrites.listByConversation(conversationId) })
@@ -141,12 +147,41 @@ export async function GET(req: NextRequest, context: RouteContext) {
     return data({ artifact })
   }
 
+  if (parts[0] === 'attachments' && parts[1]) {
+    const attachment = findAttachment(parts[1])
+    if (!attachment) return data({ error: 'Attachment not found' }, { status: 404 })
+    return new Response(new Uint8Array(attachment.bytes), {
+      headers: {
+        'Content-Type': attachment.row.mimeType,
+        'Content-Length': String(attachment.row.size),
+        'Content-Disposition': contentDisposition(attachment.row.fileName),
+        'Cache-Control': 'no-store',
+      },
+    })
+  }
+
   return data({ ok: false, error: `No local stub for /api/${path}` }, { status: 501 })
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
   const path = await getPath(context)
   const parts = pathParts(path)
+
+  if (parts[0] === 'conversations' && parts[1] && parts[2] === 'attachments') {
+    const form = await req.formData()
+    const file = form.get('file')
+    if (!(file instanceof File)) {
+      return data({ error: 'Missing file' }, { status: 400 })
+    }
+    const attachment = createAttachment({
+      conversationId: parts[1],
+      fileName: file.name,
+      mimeType: file.type,
+      bytes: Buffer.from(await file.arrayBuffer()),
+    })
+    return data({ attachment }, { status: 201 })
+  }
+
   const body = await readJson(req)
 
   if (path === 'agents') {
@@ -219,12 +254,34 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (parts[2] === 'messages') {
       const messageId = `msg_${now()}`
       const content = stringFromBody(body, 'content', '')
+      const attachments = resolveAttachments(conversationId, arrayFromBody(body, 'attachmentIds'))
+      const messageParts: MessagePart[] = []
+      if (content) messageParts.push({ type: 'text', content })
+      for (const attachment of attachments) {
+        messageParts.push(
+          attachment.kind === 'image'
+            ? {
+                type: 'image_attachment',
+                attachmentId: attachment.id,
+                fileName: attachment.fileName,
+                size: attachment.size,
+                mimeType: attachment.mimeType,
+              }
+            : {
+                type: 'file_attachment',
+                attachmentId: attachment.id,
+                fileName: attachment.fileName,
+                size: attachment.size,
+                mimeType: attachment.mimeType,
+              },
+        )
+      }
       const message: MessageRow = {
         id: messageId,
         conversationId,
         role: 'user',
         agentId: null,
-        parts: [{ type: 'text', content }],
+        parts: messageParts.length > 0 ? messageParts : [{ type: 'text', content }],
         status: 'complete',
         parentMessageId: nullableStringFromBody(body, 'parentMessageId'),
         mentionedAgentIds: arrayFromBody(body, 'mentionedAgentIds'),
@@ -384,6 +441,11 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     return ok ? data({ ok: true }) : data({ error: 'Artifact not found' }, { status: 404 })
   }
 
+  if (parts[0] === 'attachments' && parts[1]) {
+    const ok = deleteAttachment(parts[1])
+    return ok ? data({ ok: true }) : data({ error: 'Attachment not found' }, { status: 404 })
+  }
+
   return data({ ok: true })
 }
 
@@ -398,6 +460,14 @@ function pathParts(path: string): string[] {
 
 function data(payload: unknown, init?: ResponseInit): Response {
   return Response.json(payload, init)
+}
+
+function contentDisposition(fileName: string): string {
+  const asciiName = fileName
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\]/g, '')
+    .trim() || 'attachment'
+  return `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
 }
 
 function artifactPreviewResponse(content: ArtifactContent): Response {

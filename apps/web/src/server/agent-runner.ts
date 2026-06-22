@@ -1,4 +1,8 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+
 import type { AgentRow, ArtifactRow, ConversationWithMeta, MessageRow } from '@/db/schema'
+import { attachmentDataUrl } from '@/server/attachment-store'
 import { toolRegistry, type ToolDef } from '@/server/tools/registry'
 import type { MessagePart, MessageUsageEvent, RunUsageEvent, StreamEvent } from '@/shared/types'
 
@@ -10,11 +14,18 @@ type Broadcast = (event: StreamEvent) => void
 
 type ChatMessage = {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: ChatContent | null
   reasoningContent?: string
   toolCalls?: ChatToolCall[]
   toolCallId?: string
 }
+
+type ChatContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >
 
 type ChatToolCall = {
   id: string
@@ -50,10 +61,30 @@ type ChatCompletionChunk = {
 }
 
 type ChatProviderConfig = {
+  provider: AgentRow['modelProvider']
   baseUrl: string
   apiKey: string
   model: string
 }
+
+type ResponsesApiResponse = {
+  output_text?: string
+  output?: Array<{
+    content?: Array<{
+      type?: string
+      text?: string
+    }>
+  }>
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+  }
+  error?: { message?: string }
+}
+
+type ResponsesContentPart =
+  | { type: 'input_text'; text: string }
+  | { type: 'input_image'; image_url: string }
 
 type StreamedModelEvent =
   | { type: 'text'; text: string }
@@ -304,7 +335,8 @@ function buildChatMessages(agent: AgentRow, bucket: MessageRow[]): ChatMessage[]
   const messages: ChatMessage[] = [{ role: 'system', content: agent.systemPrompt }]
 
   for (const message of bucket.slice(-HISTORY_MESSAGE_LIMIT)) {
-    const content = messageText(message)
+    const content =
+      message.role === 'user' ? userMessageContent(agent, message) : messageText(message)
     if (!content || message.role === 'system') continue
     messages.push({
       role: message.role === 'agent' ? 'assistant' : 'user',
@@ -314,6 +346,29 @@ function buildChatMessages(agent: AgentRow, bucket: MessageRow[]): ChatMessage[]
   }
 
   return messages
+}
+
+function userMessageContent(agent: AgentRow, message: MessageRow): ChatContent | null {
+  const text = messageText(message)
+  if (!agent.supportsVision) return text
+
+  const images = message.parts
+    .filter((part) => part.type === 'image_attachment')
+    .map((part) => ({ part, url: attachmentDataUrl(part.attachmentId) }))
+    .filter((item): item is { part: Extract<MessagePart, { type: 'image_attachment' }>; url: string } => !!item.url)
+
+  if (images.length === 0) return text
+
+  return [
+    {
+      type: 'text',
+      text: text || `请查看上传的图片：${images.map((image) => image.part.fileName).join(', ')}`,
+    },
+    ...images.map((image) => ({
+      type: 'image_url' as const,
+      image_url: { url: image.url },
+    })),
+  ]
 }
 
 function messageText(message: MessageRow): string {
@@ -344,7 +399,13 @@ async function* callChatCompletionStream(
   messages: ChatMessage[],
   tools: ToolDef[],
 ): AsyncIterable<StreamedModelEvent> {
-  const config = chatProviderConfig(agent)
+  const needsVision = hasVisionContent(messages)
+  const config = chatProviderConfig(agent, { needsVision })
+  if (needsVision && config.provider === 'volcano-ark') {
+    yield* callArkResponses(agent, config, messages)
+    return
+  }
+
   const response = await fetch(`${config.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -418,6 +479,45 @@ async function* callChatCompletionStream(
   }
 }
 
+async function* callArkResponses(
+  agent: AgentRow,
+  config: ChatProviderConfig,
+  messages: ChatMessage[],
+): AsyncIterable<StreamedModelEvent> {
+  const response = await fetch(`${config.baseUrl.replace(/\/+$/, '')}/responses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      instructions: agent.systemPrompt,
+      input: toResponsesInput(messages),
+    }),
+  })
+
+  const json = (await response.json().catch(() => null)) as ResponsesApiResponse | null
+  if (!response.ok) {
+    const detail = json?.error?.message ? `: ${json.error.message}` : ''
+    throw new Error(`模型请求失败 (${response.status})${detail}`)
+  }
+
+  const text = responsesOutputText(json)
+  if (text) yield { type: 'text', text }
+  if (json?.usage) {
+    yield {
+      type: 'usage',
+      usage: {
+        inputTokens: json.usage.input_tokens ?? 0,
+        outputTokens: json.usage.output_tokens ?? 0,
+        cacheReadTokens: 0,
+      },
+    }
+  }
+  yield { type: 'finish', reason: 'stop' }
+}
+
 function resolveModelTools(names: string[]): ToolDef[] {
   return toolRegistry.resolve(names.filter((name) => ENABLED_MODEL_TOOLS.has(name)))
 }
@@ -441,6 +541,49 @@ function toApiMessage(message: ChatMessage): Record<string, unknown> {
       ? { reasoning_content: message.reasoningContent }
       : {}),
   }
+}
+
+function toResponsesInput(messages: ChatMessage[]): Array<Record<string, unknown>> {
+  return messages
+    .filter((message) => message.role === 'user' || message.role === 'assistant')
+    .map((message) => ({
+      role: message.role,
+      content: toResponsesContent(message.content),
+    }))
+    .filter((message) => Array.isArray(message.content) && message.content.length > 0)
+}
+
+function toResponsesContent(content: ChatContent | null): ResponsesContentPart[] {
+  if (!content) return []
+  if (typeof content === 'string') {
+    return content.trim() ? [{ type: 'input_text', text: content }] : []
+  }
+  return content
+    .map((part): ResponsesContentPart => {
+      if (part.type === 'text') return { type: 'input_text', text: part.text }
+      return { type: 'input_image', image_url: part.image_url.url }
+    })
+    .filter((part): part is ResponsesContentPart =>
+      part.type === 'input_text' ? Boolean(part.text.trim()) : Boolean(part.image_url),
+    )
+}
+
+function responsesOutputText(response: ResponsesApiResponse | null): string {
+  if (!response) return ''
+  if (response.output_text) return response.output_text
+  return (response.output ?? [])
+    .flatMap((item) => item.content ?? [])
+    .map((content) => content.text ?? '')
+    .filter(Boolean)
+    .join('')
+}
+
+function hasVisionContent(messages: ChatMessage[]): boolean {
+  return messages.some((message) =>
+    Array.isArray(message.content)
+      ? message.content.some((part) => part.type === 'image_url')
+      : false,
+  )
 }
 
 function toApiTool(tool: ToolDef): Record<string, unknown> {
@@ -584,13 +727,43 @@ function finishStreamingReply(
   broadcast({ type: 'run.end', conversationId: reply.conversationId, runId, status, error, timestamp })
 }
 
-function chatProviderConfig(agent: AgentRow): ChatProviderConfig {
-  const provider = agent.modelProvider ?? 'deepseek'
-  const model = agent.modelId?.trim() || providerDefaultModel(provider)
-  const baseUrl = agent.apiBaseUrl?.trim() || providerDefaultBaseUrl(provider)
-  const apiKey = agent.apiKey?.trim() || providerApiKey(provider)
-  if (!apiKey) throw new Error(`缺少 ${providerApiKeyName(provider)}，请检查 apps/web/.env.local 或 Agent 配置。`)
-  return { baseUrl, apiKey, model }
+function chatProviderConfig(agent: AgentRow, options: { needsVision?: boolean } = {}): ChatProviderConfig {
+  const requestedProvider = agent.modelProvider ?? 'deepseek'
+  let provider = options.needsVision ? 'volcano-ark' : requestedProvider
+  let useAgentEndpoint = !options.needsVision || requestedProvider === 'volcano-ark'
+  let apiKey = useAgentEndpoint ? agent.apiKey?.trim() || providerApiKey(provider) : providerApiKey(provider)
+
+  if (!options.needsVision && !apiKey && provider !== 'volcano-ark' && providerApiKey('volcano-ark')) {
+    provider = 'volcano-ark'
+    useAgentEndpoint = false
+    apiKey = providerApiKey(provider)
+  }
+
+  const model = resolveProviderModel(provider, agent, useAgentEndpoint)
+  const baseUrl = useAgentEndpoint ? agent.apiBaseUrl?.trim() || providerDefaultBaseUrl(provider) : providerDefaultBaseUrl(provider)
+  if (!apiKey) throw new Error(`缺少 ${providerApiKeyName(provider)}，请检查 neros/.env、apps/web/.env.local 或 Agent 配置。`)
+  return { provider, baseUrl, apiKey, model }
+}
+
+function resolveProviderModel(
+  provider: AgentRow['modelProvider'],
+  agent: AgentRow,
+  useAgentEndpoint: boolean,
+): string {
+  const agentModel = useAgentEndpoint ? agent.modelId?.trim() : ''
+  const model = agentModel || providerDefaultModel(provider)
+  if (!model && provider === 'volcano-ark') {
+    throw new Error(
+      '缺少火山方舟模型 ID。请在 neros/.env 设置 ARK_MODEL=你已开通的方舟模型或 endpoint id。',
+    )
+  }
+  if (provider === 'volcano-ark' && model.startsWith('api-key-')) {
+    throw new Error(
+      `火山方舟模型 ID 不能填 API Key 名称 ${model}。请在方舟控制台复制已开通模型的 endpoint id，通常类似 ep-...，然后写入 ARK_MODEL。`,
+    )
+  }
+  if (!model) throw new Error(`缺少 ${providerLabel(provider)} 模型 ID。`)
+  return model
 }
 
 function providerDefaultBaseUrl(provider: AgentRow['modelProvider']): string {
@@ -612,14 +785,22 @@ function providerDefaultModel(provider: AgentRow['modelProvider']): string {
   switch (provider) {
     case 'openai':
     case 'openai-compatible':
-      return 'gpt-4o'
+      return envValue('OPENAI_MODEL') || 'gpt-4o'
     case 'volcano-ark':
-      return 'doubao-seed-2-0-lite-260428'
+      return (
+        envValue('ARK_MODEL') ||
+        envValue('ARK_MODEL_ID') ||
+        envValue('ARK_ENDPOINT_ID') ||
+        envValue('VOLCANO_ARK_MODEL') ||
+        envValue('VOLCANO_ARK_MODEL_ID') ||
+        envValue('VOLCANO_ARK_ENDPOINT_ID') ||
+        envValue('NEROS_MODEL')
+      )
     case 'anthropic':
-      return 'claude-opus-4-7'
+      return envValue('ANTHROPIC_MODEL') || 'claude-opus-4-7'
     case 'deepseek':
     default:
-      return 'deepseek-v4-flash'
+      return envValue('DEEPSEEK_MODEL') || envValue('NEROS_MODEL') || 'deepseek-v4-flash'
   }
 }
 
@@ -627,14 +808,14 @@ function providerApiKey(provider: AgentRow['modelProvider']): string {
   switch (provider) {
     case 'openai':
     case 'openai-compatible':
-      return process.env.OPENAI_API_KEY ?? ''
+      return envValue('OPENAI_API_KEY')
     case 'volcano-ark':
-      return process.env.ARK_API_KEY ?? ''
+      return envValue('ARK_API_KEY')
     case 'anthropic':
-      return process.env.ANTHROPIC_API_KEY ?? ''
+      return envValue('ANTHROPIC_API_KEY')
     case 'deepseek':
     default:
-      return process.env.DEEPSEEK_API_KEY ?? process.env.NEROS_API_KEY ?? ''
+      return envValue('DEEPSEEK_API_KEY') || envValue('NEROS_API_KEY')
   }
 }
 
@@ -653,7 +834,69 @@ function providerApiKeyName(provider: AgentRow['modelProvider']): string {
   }
 }
 
+function providerLabel(provider: AgentRow['modelProvider']): string {
+  switch (provider) {
+    case 'openai':
+      return 'OpenAI'
+    case 'openai-compatible':
+      return 'OpenAI-compatible'
+    case 'volcano-ark':
+      return '火山方舟'
+    case 'anthropic':
+      return 'Anthropic'
+    case 'deepseek':
+    default:
+      return 'DeepSeek'
+  }
+}
+
 function renderAgentError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err)
   return `Neros 暂时没能完成回复：${message}`
+}
+
+function envValue(name: string): string {
+  return process.env[name]?.trim() || envFileValues()[name]?.trim() || ''
+}
+
+function envFileValues(): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const filePath of envFileCandidates()) {
+    if (!existsSync(filePath)) continue
+    Object.assign(values, parseEnvFile(readFileSync(filePath, 'utf8')))
+  }
+  return values
+}
+
+function envFileCandidates(): string[] {
+  return [
+    path.resolve(process.cwd(), '.env.local'),
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), '../../.env.local'),
+    path.resolve(process.cwd(), '../../.env'),
+  ]
+}
+
+function parseEnvFile(content: string): Record<string, string> {
+  const values: Record<string, string> = {}
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const index = line.indexOf('=')
+    if (index <= 0) continue
+    const key = line.slice(0, index).trim()
+    const rawValue = line.slice(index + 1).trim()
+    values[key] = stripEnvQuotes(rawValue)
+  }
+  return values
+}
+
+function stripEnvQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1)
+  }
+  return value
 }

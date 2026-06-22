@@ -249,6 +249,7 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
   const [sending, setSending] = useState(false)
   const [aborting, setAborting] = useState(false)
   const [uploading, setUploading] = useState<Array<{ tempId: string; name: string }>>([])
+  const [dragOver, setDragOver] = useState(false)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -490,6 +491,34 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
         }
       }),
     )
+  }
+
+  const isFileDrag = (event: React.DragEvent<HTMLDivElement>) =>
+    Array.from(event.dataTransfer.types).includes('Files')
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (composerLocked || !isFileDrag(event)) return
+    event.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (composerLocked || !isFileDrag(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+    setDragOver(false)
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (composerLocked) return
+    event.preventDefault()
+    setDragOver(false)
+    void handleFileSelect(event.dataTransfer.files)
   }
 
   const clearSlashCommandInput = () => {
@@ -772,7 +801,22 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
   }
 
   return (
-    <div className="relative shrink-0 border-t bg-background p-3">
+    <div
+      className={cn(
+        'relative shrink-0 border-t bg-background p-3 transition-colors',
+        dragOver && 'border-t-[#3370FF] bg-[#3370FF]/5',
+      )}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragOver && (
+        <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-md border border-dashed border-[#3370FF]/70 bg-background/80 text-xs font-medium text-[#3370FF] shadow-sm backdrop-blur-sm">
+          松开上传图片
+        </div>
+      )}
+
       {/* 引用预览 */}
       {replyMessage && (
         <div className="mb-2">
@@ -967,6 +1011,7 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
           ref={fileInputRef}
           type="file"
           multiple
+          accept="image/*"
           className="hidden"
           onChange={(e) => {
             void handleFileSelect(e.target.files)
