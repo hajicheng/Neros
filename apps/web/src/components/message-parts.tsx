@@ -457,6 +457,12 @@ function ToolUsePart({
           ? { output: completion.result }
           : null)
       : null
+  const screenshotResult =
+    completion && !completion.isError ? extractScreenshotResult(completion.result) : null
+  const screenshotError =
+    completion && completion.isError && toolName === 'desktop_capture_screen'
+      ? extractToolErrorText(completion.result)
+      : null
 
   const state: 'running' | 'success' | 'error' = !completion
     ? 'running'
@@ -534,6 +540,19 @@ function ToolUsePart({
             tone={completion?.isError ? 'error' : 'neutral'}
           />
         )}
+        {screenshotResult && (
+          <ScreenshotPreview result={screenshotResult} expanded={showDetails} />
+        )}
+        {screenshotError && (
+          <TerminalPreviewBlock
+            label="截图失败"
+            content={screenshotError}
+            copyTitle="复制错误"
+            expanded={showDetails}
+            tone="error"
+            collapsedMaxClassName="max-h-32"
+          />
+        )}
 
         {showDetails && (
           <div className="min-w-0 space-y-2 pt-1">
@@ -574,6 +593,70 @@ interface BashResultPreview {
   exitCode?: number | null
   truncated?: boolean
   timedOut?: boolean
+}
+
+interface ScreenshotResultPreview {
+  imageDataUrl?: string
+  publicUrl?: string
+  path?: string
+  absolutePath?: string
+  mimeType?: string
+  size?: number
+}
+
+function ScreenshotPreview({
+  result,
+  expanded,
+}: {
+  result: ScreenshotResultPreview
+  expanded: boolean
+}) {
+  const imageUrl = result.imageDataUrl ?? result.publicUrl ?? ''
+  const meta = [
+    result.mimeType,
+    typeof result.size === 'number' ? formatBytes(result.size) : null,
+    result.path,
+  ].filter(Boolean)
+
+  return (
+    <div
+      className="min-w-0 overflow-hidden rounded-md border bg-background/80 shadow-sm"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="flex min-w-0 items-center gap-2 border-b border-border/70 px-2.5 py-1.5 text-[10px] text-muted-foreground">
+        <ImageIcon className="size-3 shrink-0" />
+        <span className="shrink-0 font-medium">截图</span>
+        {meta.length > 0 && (
+          <span className="min-w-0 truncate font-mono">{meta.join(' · ')}</span>
+        )}
+        <a
+          href={imageUrl}
+          download={screenshotFileName(result)}
+          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 transition hover:bg-muted hover:text-foreground"
+          title="下载截图"
+        >
+          <Download className="size-3" />
+          下载
+        </a>
+      </div>
+      <a
+        href={imageUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="block bg-black/5 dark:bg-black/20"
+        title="打开截图"
+      >
+        <img
+          src={imageUrl}
+          alt="桌面截图"
+          className={cn(
+            'block h-auto w-full max-w-full object-contain',
+            expanded ? 'max-h-[70vh]' : 'max-h-80',
+          )}
+        />
+      </a>
+    </div>
+  )
 }
 
 function BashOutputPreview({
@@ -720,6 +803,36 @@ function extractBashResult(value: unknown): BashResultPreview | null {
   }
 }
 
+function extractScreenshotResult(value: unknown): ScreenshotResultPreview | null {
+  if (!isPlainRecord(value)) return null
+  const imageDataUrl = typeof value.imageDataUrl === 'string' && value.imageDataUrl.startsWith('data:image/')
+    ? value.imageDataUrl
+    : undefined
+  const publicUrl = typeof value.publicUrl === 'string' && value.publicUrl ? value.publicUrl : undefined
+  if (!imageDataUrl && !publicUrl) return null
+  return {
+    imageDataUrl,
+    publicUrl,
+    path: typeof value.path === 'string' ? value.path : undefined,
+    absolutePath: typeof value.absolutePath === 'string' ? value.absolutePath : undefined,
+    mimeType: typeof value.mimeType === 'string' ? value.mimeType : undefined,
+    size: typeof value.size === 'number' ? value.size : undefined,
+  }
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function screenshotFileName(result: ScreenshotResultPreview): string {
+  const pathName = result.path ?? result.absolutePath
+  const fromPath = pathName?.split(/[\\/]/).pop()
+  if (fromPath) return fromPath
+  return result.mimeType === 'image/png' ? 'desktop-screenshot.png' : 'desktop-screenshot.jpg'
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -728,6 +841,12 @@ function formatToolValue(value: unknown): string {
   if (typeof value === 'string') return value
   const json = JSON.stringify(value, null, 2)
   return json ?? String(value)
+}
+
+function extractToolErrorText(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value
+  if (!isPlainRecord(value)) return null
+  return typeof value.error === 'string' && value.error.trim() ? value.error : null
 }
 
 // ─── 连续 tool_use 折叠 cluster ────────────────────────

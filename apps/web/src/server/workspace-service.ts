@@ -76,6 +76,17 @@ export function readWorkspaceFile(conversation: ConversationWithMeta, relPath: s
   }
 }
 
+export function readWorkspaceBinaryFile(conversation: ConversationWithMeta, relPath: string) {
+  const absolutePath = safeWorkspacePath(conversation, relPath)
+  const stat = statSync(absolutePath)
+  return {
+    path: normalizeRelPath(relPath),
+    absolutePath,
+    size: stat.size,
+    bytes: readFileSync(absolutePath),
+  }
+}
+
 export function writeWorkspaceFile(conversation: ConversationWithMeta, relPath: string, content: string) {
   const absolutePath = safeWorkspacePath(conversation, relPath)
   mkdirSync(path.dirname(absolutePath), { recursive: true })

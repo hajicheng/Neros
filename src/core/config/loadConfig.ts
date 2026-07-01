@@ -22,6 +22,7 @@ export async function loadConfig(cwd: string): Promise<NerosConfig> {
   if (process.env["NEROS_MODEL"]) raw.model = process.env["NEROS_MODEL"];
   if (process.env["NEROS_BASE_URL"]) raw.baseUrl = process.env["NEROS_BASE_URL"];
   if (process.env["NEROS_API_KEY"]) raw.apiKey = process.env["NEROS_API_KEY"];
+  if (!raw.apiKey && process.env["DEEPSEEK_API_KEY"]) raw.apiKey = process.env["DEEPSEEK_API_KEY"];
 
   return nerosConfigSchema.parse(raw);
 }

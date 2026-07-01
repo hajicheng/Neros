@@ -40,6 +40,25 @@ export function Markdown({ children, className }: MarkdownProps) {
               {children}
             </a>
           ),
+          img: ({ src, alt }) => {
+            if (typeof src !== 'string' || !src) return null
+            const altText = typeof alt === 'string' ? alt : undefined
+            if (isBlockedGeneratedPlaceholderImage(src, altText)) {
+              return (
+                <span className="my-2 block rounded-md border border-dashed border-muted-foreground/30 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  截图未返回可显示的本地图片；请查看上方工具结果卡片。
+                </span>
+              )
+            }
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={src}
+                alt={altText ?? ''}
+                className="my-2 max-h-[70vh] max-w-full rounded-md border object-contain"
+              />
+            )
+          },
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
           blockquote: ({ children }) => (
@@ -95,4 +114,23 @@ function isCodeBlockChild(node: ReactNode): boolean {
   if (!isValidElement(node)) return false
   const el = node as ReactElement<{ className?: string }>
   return el.type === CodeBlock || el.props?.className?.startsWith('language-') === true
+}
+
+function isBlockedGeneratedPlaceholderImage(src: string, alt?: string): boolean {
+  const normalizedAlt = (alt ?? '').toLowerCase()
+  const normalizedSrc = src.toLowerCase()
+  if (
+    /^(当前屏幕截图|桌面截图|screenshot|screen\s*capture|screenshot\s*captured)$/i.test(
+      normalizedAlt.trim(),
+    ) &&
+    /^https?:\/\//.test(normalizedSrc)
+  ) {
+    return true
+  }
+  try {
+    const host = new URL(src, globalThis.location?.origin).hostname.toLowerCase()
+    return /(^|\.)placeholder\.(com|co)$/.test(host) || host === 'via.placeholder.com'
+  } catch {
+    return false
+  }
 }

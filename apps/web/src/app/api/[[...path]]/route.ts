@@ -24,6 +24,7 @@ import { pendingWrites } from '@/server/pending-writes'
 import {
   listHostDirectory,
   listWorkspaceDirectory,
+  readWorkspaceBinaryFile,
   readWorkspaceFile,
   writeWorkspaceFile,
 } from '@/server/workspace-service'
@@ -132,6 +133,19 @@ export async function GET(req: NextRequest, context: RouteContext) {
       const conversation = conversations.find((item) => item.id === conversationId)
       if (!conversation) return data({ error: 'Conversation not found' }, { status: 404 })
       return data(readWorkspaceFile(conversation, relPath))
+    }
+    if (parts[2] === 'fs' && parts[3] === 'raw') {
+      const relPath = req.nextUrl.searchParams.get('path') ?? ''
+      const conversation = conversations.find((item) => item.id === conversationId)
+      if (!conversation) return data({ error: 'Conversation not found' }, { status: 404 })
+      const file = readWorkspaceBinaryFile(conversation, relPath)
+      return new Response(new Uint8Array(file.bytes), {
+        headers: {
+          'Content-Type': mimeTypeForPath(file.path),
+          'Content-Length': String(file.size),
+          'Cache-Control': 'no-store',
+        },
+      })
     }
   }
 
@@ -566,6 +580,16 @@ function settingsPatch(body: Record<string, unknown> | null): Partial<AppSetting
 
 function valueOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+function mimeTypeForPath(filePath: string): string {
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  return 'application/octet-stream'
 }
 
 function emptyUsageBucket() {

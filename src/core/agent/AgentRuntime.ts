@@ -12,6 +12,16 @@ import { readFileTool } from "../tools/builtin/read-file.js";
 import { listFilesTool } from "../tools/builtin/list-files.js";
 import { grepTool } from "../tools/builtin/grep.js";
 import { skillhubTool } from "../tools/builtin/skillhub.js";
+import {
+  appLaunchTool,
+  browserOpenTool,
+  browserSearchTool,
+  desktopCaptureScreenTool,
+  desktopKeyboardTool,
+  desktopMouseTool,
+  desktopScreenInfoTool,
+  desktopWindowTool,
+} from "../tools/builtin/desktop-automation.js";
 
 const PROVIDERS: Record<string, ModelProvider> = {
   deepseek: deepseekProvider,
@@ -41,6 +51,14 @@ export class AgentRuntime {
     tools.register(listFilesTool);
     tools.register(grepTool);
     tools.register(skillhubTool);
+    tools.register(desktopScreenInfoTool);
+    tools.register(desktopCaptureScreenTool);
+    tools.register(desktopMouseTool);
+    tools.register(desktopKeyboardTool);
+    tools.register(desktopWindowTool);
+    tools.register(appLaunchTool);
+    tools.register(browserOpenTool);
+    tools.register(browserSearchTool);
 
     const store = new ConversationStore();
 
@@ -85,6 +103,6 @@ export class AgentRuntime {
   }
 
   private defaultSystemPrompt(): string {
-    return `You are Neros, a helpful coding assistant. You have access to tools that can read files, list files, and search code. Use these tools to help the user understand and work with their codebase. Always be concise and accurate. Current working directory: ${this.config.cwd}`;
+    return `You are Neros, a helpful coding assistant. You have access to tools that can read files, list files, search code, open apps and browsers, inspect the desktop, and control mouse/keyboard input. Use desktop automation carefully: inspect the screen first, avoid irreversible actions unless the user asked for them, and be concise and accurate. Current working directory: ${this.config.cwd}`;
   }
 }

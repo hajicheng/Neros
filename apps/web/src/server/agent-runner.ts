@@ -8,7 +8,21 @@ import type { MessagePart, MessageUsageEvent, RunUsageEvent, StreamEvent } from 
 
 const HISTORY_MESSAGE_LIMIT = 20
 const MAX_AGENT_TURNS = 6
-const ENABLED_MODEL_TOOLS = new Set(['write_artifact', 'fs_list', 'fs_read', 'fs_write', 'bash'])
+const ENABLED_MODEL_TOOLS = new Set([
+  'write_artifact',
+  'fs_list',
+  'fs_read',
+  'fs_write',
+  'bash',
+  'desktop_get_screen_info',
+  'desktop_capture_screen',
+  'desktop_mouse',
+  'desktop_keyboard',
+  'desktop_window',
+  'app_launch',
+  'browser_open',
+  'browser_search',
+])
 
 type Broadcast = (event: StreamEvent) => void
 
@@ -164,6 +178,17 @@ async function streamAgentReply(args: {
   const usage: MessageUsageEvent = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 }
 
   try {
+    if (args.conversation && shouldRunDirectScreenshot(args.bucket, reply.id)) {
+      await runDirectScreenshot({
+        conversation: args.conversation,
+        reply,
+        runId,
+        broadcast,
+        agent,
+      })
+      return
+    }
+
     const chatMessages = buildChatMessages(agent, bucket.filter((message) => message.id !== reply.id))
     const toolDefs = args.conversation ? resolveModelTools(agent.toolNames) : []
 
@@ -262,12 +287,13 @@ async function streamAgentReply(args: {
         }
 
         const value = artifact ? compactArtifactToolResult(rawValue) : rawValue
+        const modelValue = compactModelToolResult(value)
         addToolResultPart(reply, broadcast, toolCall.id, value, !result.ok)
         if (artifact) addArtifactRefPart(reply, broadcast, artifact.id)
         chatMessages.push({
           role: 'tool',
           toolCallId: toolCall.id,
-          content: JSON.stringify(value),
+          content: JSON.stringify(modelValue),
         })
       }
     }
@@ -392,6 +418,60 @@ function messageThinkingText(message: MessageRow): string | undefined {
     .filter(Boolean)
     .join('\n')
   return text || undefined
+}
+
+function shouldRunDirectScreenshot(bucket: MessageRow[], replyId: string): boolean {
+  const trigger = [...bucket].reverse().find((message) => message.id !== replyId && message.role === 'user')
+  if (!trigger) return false
+  const text = messageText(trigger).trim().toLowerCase()
+  if (!text) return false
+  if (/^(怎么|为什么|为何).*(截图|截屏)|(?:截图|截屏).*(不行|失败|报错|问题)/.test(text)) {
+    return false
+  }
+  return (
+    /^(\/)?\s*(?:(?:帮我|请|给我|麻烦|现在|直接)\s*)?(截图|截屏|屏幕截图|当前屏幕|电脑屏幕|desktop\s*screenshot|screenshot)(?:\s|$|[，。,.!?！？])/.test(text) ||
+    (text.length <= 32 && /(截个?屏|截一下屏|截张?图|屏幕截图|当前屏幕|desktop\s*screenshot|screenshot)/.test(text))
+  )
+}
+
+async function runDirectScreenshot(args: {
+  conversation: ConversationWithMeta
+  reply: MessageRow
+  runId: string
+  broadcast: Broadcast
+  agent: AgentRow
+}): Promise<void> {
+  const callId = `call_${Date.now()}_desktop_capture_screen`
+  addToolUsePart(args.reply, args.broadcast, callId, 'desktop_capture_screen', {})
+  const result = await toolRegistry.execute('desktop_capture_screen', {}, {
+    conversation: args.conversation,
+    agentId: args.agent.id,
+    runId: args.runId,
+  })
+
+  const value = result.ok ? result.value : { error: result.error }
+  addToolResultPart(args.reply, args.broadcast, callId, value, !result.ok)
+
+  if (!result.ok) {
+    const textPartIndex = args.reply.parts.length
+    startReplyPart(args.reply, args.broadcast, textPartIndex, { type: 'text', content: '' })
+    appendReplyPart(args.reply, textPartIndex, `截图失败：${result.error}`)
+    args.broadcast({
+      type: 'part.delta',
+      conversationId: args.reply.conversationId,
+      messageId: args.reply.id,
+      partIndex: textPartIndex,
+      delta: { type: 'text.append', text: `截图失败：${result.error}` },
+      timestamp: Date.now(),
+    })
+    endPartIfStarted(args.broadcast, args.reply, textPartIndex)
+    args.reply.status = 'error'
+    finishStreamingReply(args.broadcast, args.runId, args.reply, 'failed', null, args.agent.modelId, result.error)
+    return
+  }
+
+  args.reply.status = 'complete'
+  finishStreamingReply(args.broadcast, args.runId, args.reply, 'complete', null, args.agent.modelId)
 }
 
 async function* callChatCompletionStream(
@@ -626,6 +706,17 @@ function compactArtifactToolResult(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const { artifact: _artifact, ...rest } = value as Record<string, unknown>
   return rest
+}
+
+function compactModelToolResult(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const record = value as Record<string, unknown>
+  if (typeof record.imageDataUrl !== 'string') return value
+  const { imageDataUrl: _imageDataUrl, ...rest } = record
+  return {
+    ...rest,
+    note: 'Screenshot captured. The UI displays the image from the tool result; if you mention it in text, use publicUrl or markdown only.',
+  }
 }
 
 function addToolUsePart(

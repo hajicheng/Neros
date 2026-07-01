@@ -1,4 +1,14 @@
 import { bashTool } from './bash'
+import {
+  appLaunchTool,
+  browserOpenTool,
+  browserSearchTool,
+  desktopCaptureScreenTool,
+  desktopKeyboardTool,
+  desktopMouseTool,
+  desktopScreenInfoTool,
+  desktopWindowTool,
+} from './desktop-automation'
 import { fsListTool } from './fs-list'
 import { fsReadTool } from './fs-read'
 import { fsWriteTool } from './fs-write'
@@ -51,6 +61,14 @@ function buildRegistry(): ToolRegistry {
   registry.register(fsReadTool)
   registry.register(fsWriteTool)
   registry.register(bashTool)
+  registry.register(desktopScreenInfoTool)
+  registry.register(desktopCaptureScreenTool)
+  registry.register(desktopMouseTool)
+  registry.register(desktopKeyboardTool)
+  registry.register(desktopWindowTool)
+  registry.register(appLaunchTool)
+  registry.register(browserOpenTool)
+  registry.register(browserSearchTool)
   return registry
 }
 

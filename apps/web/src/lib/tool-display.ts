@@ -9,6 +9,14 @@ const AGENTHUB_TOOL_LABELS = {
   fs_read: '读取文件',
   fs_write: '写入文件',
   bash: '执行命令',
+  desktop_get_screen_info: '屏幕信息',
+  desktop_capture_screen: '截取屏幕',
+  desktop_mouse: '鼠标操作',
+  desktop_keyboard: '键盘操作',
+  desktop_window: '窗口操作',
+  app_launch: '启动应用',
+  browser_open: '打开浏览器',
+  browser_search: '浏览器搜索',
   ask_user: '询问用户',
 } as const
 

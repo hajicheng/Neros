@@ -28,10 +28,18 @@ export const AVAILABLE_AGENT_TOOLS = [
   'fs_read',
   'fs_write',
   'bash',
+  'desktop_get_screen_info',
+  'desktop_capture_screen',
+  'desktop_mouse',
+  'desktop_keyboard',
+  'desktop_window',
+  'app_launch',
+  'browser_open',
+  'browser_search',
 ] as const
 
 export type AgentToolName = (typeof AVAILABLE_AGENT_TOOLS)[number]
-export type AgentToolPresetId = 'all-purpose' | 'local-code' | 'artifact' | 'review'
+export type AgentToolPresetId = 'all-purpose' | 'desktop' | 'local-code' | 'artifact' | 'review'
 
 export interface AgentToolPreset {
   id: AgentToolPresetId
@@ -46,6 +54,22 @@ export const AGENT_TOOL_PRESETS: readonly AgentToolPreset[] = [
     label: '全栈通用',
     desc: '本地代码 + artifact 交付',
     tools: AVAILABLE_AGENT_TOOLS,
+  },
+  {
+    id: 'desktop',
+    label: '桌面自动化',
+    desc: '浏览器、软件、屏幕与鼠标键盘',
+    tools: [
+      'ask_user',
+      'desktop_get_screen_info',
+      'desktop_capture_screen',
+      'desktop_mouse',
+      'desktop_keyboard',
+      'desktop_window',
+      'app_launch',
+      'browser_open',
+      'browser_search',
+    ],
   },
   {
     id: 'local-code',
@@ -80,6 +104,14 @@ export const AGENT_TOOL_META: Record<AgentToolName, { label: string; desc: strin
   fs_read: { label: '读取文件', desc: '读取工作区内的文件（源码 / 配置等），仅限沙箱目录' },
   fs_write: { label: '写入文件', desc: '在工作区内新建 / 修改文件；review 模式下需用户批准' },
   bash: { label: '执行命令', desc: '在工作区内运行命令行；受命令黑名单与沙箱目录约束' },
+  desktop_get_screen_info: { label: '屏幕信息', desc: '读取本机屏幕尺寸、鼠标位置和可见窗口标题' },
+  desktop_capture_screen: { label: '截取屏幕', desc: '保存本机桌面截图，并返回可供视觉模型查看的图片数据' },
+  desktop_mouse: { label: '鼠标操作', desc: '移动、点击、双击、右键、拖拽或滚动本机鼠标' },
+  desktop_keyboard: { label: '键盘操作', desc: '向当前窗口输入文字、按键或发送快捷键' },
+  desktop_window: { label: '窗口操作', desc: '列出窗口，或按标题/应用名聚焦到前台' },
+  app_launch: { label: '启动应用', desc: '打开本机应用、文件、目录或 URL' },
+  browser_open: { label: '打开浏览器', desc: '在默认或指定浏览器中打开 URL' },
+  browser_search: { label: '浏览器搜索', desc: '用浏览器打开 Google、Bing、百度或 DuckDuckGo 搜索结果' },
 }
 
 export interface AgentDraftAssumption {
@@ -152,6 +184,14 @@ export function inferAgentToolPreset(intent: string, followUp?: string): AgentTo
     /修改(?!建议)/.test(text)
   const wantsReview = /审查|评审|检查|验证|验收|风险|review|audit|inspect|validate|verify/.test(text)
   if (wantsReview && !wantsToWrite) return 'review'
+
+  if (
+    /桌面|屏幕|截图|鼠标|键盘|点击|双击|拖拽|滚动|窗口|软件|应用|浏览器|网页搜索|自动化|desktop|screen|screenshot|mouse|keyboard|click|window|browser|app/.test(
+      text,
+    )
+  ) {
+    return 'desktop'
+  }
 
   if (
     /代码|源码|仓库|本地|文件|命令|终端|测试|修复|重构|调试|workspace|repo|repository|code|cli|bash|test|lint|debug|refactor/.test(
