@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/neros_screenshot.d",
+    "object": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/neros_screenshot.o",
+    "swift-dependencies": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/primary.swiftdeps"
+  },
+  "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift": {
+    "object": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o",
+    "swiftmodule": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swiftdeps",
+    "diagnostics": "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.dia"
+  }
+}

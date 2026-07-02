@@ -1,7 +1,8 @@
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { z } from "zod";
 import type { Tool, ToolContext } from "../Tool.js";
@@ -277,13 +278,55 @@ async function getCursorPosition(): Promise<{ x: number; y: number }> {
   return { x, y };
 }
 
+let _nativeScreenshotPath: string | null | undefined;
+
+async function findNativeScreenshot(): Promise<string | null> {
+  if (_nativeScreenshotPath !== undefined) return _nativeScreenshotPath;
+
+  const candidates = [
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "native", "neros-screenshot", "dist", "NeroScreenshot.app", "Contents", "MacOS", "neros-screenshot"),
+    path.resolve(process.cwd(), "native", "neros-screenshot", "dist", "NeroScreenshot.app", "Contents", "MacOS", "neros-screenshot"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await access(candidate);
+      _nativeScreenshotPath = candidate;
+      return candidate;
+    } catch {
+      // not found, try next
+    }
+  }
+
+  _nativeScreenshotPath = null;
+  return null;
+}
+
 async function captureScreen(filePath: string, format: "png" | "jpg"): Promise<void> {
   if (process.platform === "darwin") {
+    const nativeBin = await findNativeScreenshot();
+    if (nativeBin) {
+      try {
+        await run(nativeBin, ["--format", format, "--output", filePath, "--max-width", "1280", "--quality", "0.65"]);
+        return;
+      } catch (err) {
+        const msg = errorMessage(err);
+        if (msg.includes("TCC")) {
+          throw new Error(
+            `macOS 截屏失败：需要屏幕录制权限。\n\n` +
+            `请到 系统设置 → 隐私与安全性 → 屏幕录制，找到 "NeroScreenshot" 并开启。\n` +
+            `首次添加后需要重启 Neros dev server。`,
+          );
+        }
+      }
+    }
     try {
       await run("screencapture", ["-x", "-t", format, filePath]);
     } catch (err) {
       throw new Error(
-        `macOS backend screenshot failed: ${errorMessage(err)}. Screenshots must be captured by the local process running Neros. Grant Screen Recording permission to the Terminal, iTerm, Cursor, VS Code, or Node host that starts pnpm/next/node, then fully quit and restart that app and the Neros dev server. Granting Chrome permission will not fix this backend tool.`,
+        `macOS 截屏失败: ${errorMessage(err)}.\n\n` +
+        `方案一（推荐）：运行 native/neros-screenshot/build.sh 构建原生截图工具，然后在系统设置中授权 NeroScreenshot。\n` +
+        `方案二：到 系统设置 → 隐私与安全性 → 屏幕录制，给启动 Neros 的终端应用授权，然后完全退出重启。`,
       );
     }
     return;

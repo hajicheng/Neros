@@ -1,7 +1,9 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { access } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 import { workspaceRoot } from '@/server/workspace-service'
@@ -305,11 +307,55 @@ async function getCursorPosition(): Promise<{ x: number; y: number } | null> {
   return { x, y }
 }
 
+let _nativeScreenshotPath: string | null | undefined
+
+async function findNativeScreenshot(): Promise<string | null> {
+  if (_nativeScreenshotPath !== undefined) return _nativeScreenshotPath
+
+  const candidates = [
+    path.resolve(process.cwd(), 'native', 'neros-screenshot', 'dist', 'NeroScreenshot.app', 'Contents', 'MacOS', 'neros-screenshot'),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'native', 'neros-screenshot', 'dist', 'NeroScreenshot.app', 'Contents', 'MacOS', 'neros-screenshot'),
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      await access(candidate)
+      _nativeScreenshotPath = candidate
+      return candidate
+    } catch {
+      // not found, try next
+    }
+  }
+
+  _nativeScreenshotPath = null
+  return null
+}
+
 async function captureScreen(
   filePath: string,
   opts: { format: 'png' | 'jpg'; screenIndex: number | null },
 ): Promise<void> {
   if (process.platform === 'darwin') {
+    const nativeBin = await findNativeScreenshot()
+    if (nativeBin) {
+      try {
+        const nativeArgs = ['--format', opts.format, '--output', filePath, '--max-width', '1600', '--quality', '0.72']
+        if (typeof opts.screenIndex === 'number') {
+          nativeArgs.push('--screen-index', String(opts.screenIndex))
+        }
+        await run(nativeBin, nativeArgs)
+        return
+      } catch (err) {
+        const msg = errorMessage(err)
+        if (msg.includes('TCC') || msg.includes('denied') || msg.includes('permission')) {
+          throw new Error(
+            `macOS 截屏失败：需要屏幕录制权限。\n\n` +
+            `请到 系统设置 → 隐私与安全性 → 屏幕录制，找到 "NeroScreenshot" 并开启。\n` +
+            `授权后需要重启 Neros dev server。`,
+          )
+        }
+      }
+    }
     try {
       const args = ['-x', '-t', opts.format]
       if (typeof opts.screenIndex === 'number') args.push('-D', String(opts.screenIndex + 1))
@@ -317,7 +363,9 @@ async function captureScreen(
       await run('screencapture', args)
     } catch (err) {
       throw new Error(
-        macScreenshotErrorMessage(errorMessage(err)),
+        `macOS 截屏失败: ${errorMessage(err)}.\n\n` +
+        `方案一（推荐）：在项目根目录运行 native/neros-screenshot/build.sh 构建原生截图工具，然后在系统设置中授权 NeroScreenshot。\n` +
+        `方案二：到 系统设置 → 隐私与安全性 → 屏幕录制，给启动 Neros 的终端应用（如 VS Code）授权，然后 Cmd+Q 完全退出重启。`,
       )
     }
     return
@@ -401,16 +449,6 @@ function normalizeJpegQuality(value: number | null): number {
   if (value === null || !Number.isFinite(value)) return DEFAULT_SCREENSHOT_JPEG_QUALITY
   const normalized = value <= 1 ? value * 100 : value
   return Math.min(100, Math.max(5, Math.round(normalized)))
-}
-
-function macScreenshotErrorMessage(detail: string): string {
-  return [
-    `macOS 后端截屏失败: ${detail}`,
-    '当前 Neros Web 服务所在进程没有可用的屏幕录制权限，或不在可截屏的图形会话中。',
-    '请到 系统设置 -> 隐私与安全性 -> 屏幕录制，给启动 Neros 的应用授权：Terminal、iTerm、Cursor、VS Code，或实际运行 pnpm/next/node 的宿主。',
-    '授权后必须完全退出该应用并重启 Neros dev server。只给 Chrome/浏览器授权不会修复后端截图工具。',
-    'OpenClaw 的 macOS 截图走原生 ScreenCaptureKit App；Neros 当前 Node 版需要给 Node/终端宿主授权。',
-  ].join(' ')
 }
 
 async function runMouseAction(

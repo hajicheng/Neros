@@ -1,0 +1,66 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<neros-screenshot-arm64-apple-macosx-release.exe>","<neros-screenshot-arm64-apple-macosx-release.module>"]
+  "neros-screenshot-arm64-apple-macosx-release.exe": ["<neros-screenshot-arm64-apple-macosx-release.exe>"]
+  "neros-screenshot-arm64-apple-macosx-release.module": ["<neros-screenshot-arm64-apple-macosx-release.module>"]
+  "test": ["<neros-screenshot-arm64-apple-macosx-release.exe>","<neros-screenshot-arm64-apple-macosx-release.module>"]
+default: "main"
+nodes:
+  "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o"]
+    outputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList"
+
+  "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift"]
+    outputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources"]
+    description: "Write auxiliary file /Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources"
+
+  "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<neros-screenshot-arm64-apple-macosx-release.exe>":
+    tool: phony
+    inputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot"]
+    outputs: ["<neros-screenshot-arm64-apple-macosx-release.exe>"]
+
+  "<neros-screenshot-arm64-apple-macosx-release.module>":
+    tool: phony
+    inputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules/neros_screenshot.swiftmodule"]
+    outputs: ["<neros-screenshot-arm64-apple-macosx-release.module>"]
+
+  "C.neros-screenshot-arm64-apple-macosx-release.exe":
+    tool: shell
+    inputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList"]
+    outputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot"]
+    description: "Linking ./.build/arm64-apple-macosx/release/neros-screenshot"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release","-o","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot","-module-name","neros_screenshot","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_neros_screenshot_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx14.0","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
+
+  "C.neros-screenshot-arm64-apple-macosx-release.module":
+    tool: shell
+    inputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources"]
+    outputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules/neros_screenshot.swiftmodule"]
+    description: "Compiling Swift Module 'neros_screenshot' (1 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","neros_screenshot","-emit-dependencies","-emit-module","-emit-module-path","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules/neros_screenshot.swiftmodule","-output-file-map","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/output-file-map.json","-whole-module-optimization","-num-threads","8","-c","@/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources","-I","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx14.0","-whole-module-optimization","-num-threads","8","-serialize-diagnostics","-O","-j8","-DSWIFT_PACKAGE","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","neros_screenshot_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","neros_screenshot"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/","/Users/wzc/studyspace/neros/native/neros-screenshot/Package.swift","/Users/wzc/studyspace/neros/native/neros-screenshot/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

@@ -1,0 +1,219 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.neros-screenshot-arm64-apple-macosx-release.module" : {
+      "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "fileList" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources",
+      "importPath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "neros_screenshot",
+      "moduleOutputPath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules/neros_screenshot.swiftmodule",
+      "objects" : [
+        "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "8",
+        "-serialize-diagnostics",
+        "-O",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "neros_screenshot_main",
+        "-swift-version",
+        "5",
+        "-I",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-L",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-plugin-path",
+        "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "neros_screenshot"
+      ],
+      "outputFileMapPath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules/neros_screenshot.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift"
+      ],
+      "tempsPath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build",
+      "wholeModuleOptimization" : true
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "neros_screenshot" : [
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "-module-name",
+      "neros_screenshot",
+      "-package-name",
+      "neros_screenshot",
+      "-c",
+      "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift",
+      "-I",
+      "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "8",
+      "-serialize-diagnostics",
+      "-O",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "neros_screenshot_main",
+      "-swift-version",
+      "5",
+      "-I",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-L",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-plugin-path",
+      "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "neros_screenshot",
+      "-driver-use-frontend-path",
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "neros_screenshot" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/main.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros-screenshot.product/Objects.LinkFileList"
+    },
+    "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/wzc/studyspace/neros/native/neros-screenshot/Sources/main.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/neros_screenshot.build/sources"
+    },
+    "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/wzc/studyspace/neros/native/neros-screenshot/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+    }
+  }
+}
