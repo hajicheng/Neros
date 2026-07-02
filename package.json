@@ -1,16 +1,27 @@
 {
-  "name": "neros-workspace",
+  "name": "@neros/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tools/builtin/skillhub.js": "./src/tools/builtin/skillhub.ts",
+    "./tools/builtin/desktop-automation.js": "./src/tools/builtin/desktop-automation.ts",
+    "./*": "./src/*"
+  },
   "scripts": {
     "dev": "pnpm --filter @neros/tui dev",
     "web:dev": "pnpm --filter @neros/web dev",
     "web:build": "pnpm --filter @neros/web build",
     "tui:dev": "pnpm --filter @neros/tui dev",
-    "tui:build": "pnpm --filter @neros/tui build"
+    "tui:build": "pnpm --filter @neros/tui build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "undici": "^8.4.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^25.9.2",
     "typescript": "^6.0.3"
   }
 }

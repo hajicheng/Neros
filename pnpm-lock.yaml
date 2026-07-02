@@ -7,7 +7,17 @@ settings:
 importers:
 
   .:
+    dependencies:
+      undici:
+        specifier: ^8.4.1
+        version: 8.4.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
+      '@types/node':
+        specifier: ^25.9.2
+        version: 25.9.2
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -16,7 +26,7 @@ importers:
     dependencies:
       '@neros/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../..
       ink:
         specifier: ^7.0.5
         version: 7.0.5(@types/react@19.2.17)(react@19.2.7)
@@ -59,7 +69,7 @@ importers:
         version: 6.5.0
       '@neros/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../..
       '@radix-ui/react-tabs':
         specifier: ^1.1.14
         version: 1.1.14(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -154,22 +164,6 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
-
-  packages/core:
-    dependencies:
-      undici:
-        specifier: ^8.4.1
-        version: 8.4.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^25.9.2
-        version: 25.9.2
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
 
 packages:
 
