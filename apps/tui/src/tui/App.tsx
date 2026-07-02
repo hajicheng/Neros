@@ -1,7 +1,7 @@
 import React from "react";
 import { useAgentSession } from "./hooks/useAgentSession.js";
 import { Layout } from "./components/Layout.js";
-import type { AgentRuntime } from "../core/agent/AgentRuntime.js";
+import type { AgentRuntime } from "@neros/core";
 
 type Props = {
   runtime: AgentRuntime;

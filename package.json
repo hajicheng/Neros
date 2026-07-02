@@ -1,44 +1,16 @@
 {
-  "name": "neros",
+  "name": "neros-workspace",
   "version": "0.1.0",
-  "description": "TUI Agent powered by OpenAI Compatible API",
+  "private": true,
   "type": "module",
-  "bin": {
-    "neros": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "package.json"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
-    "dev": "tsx src/entrypoints/cli.ts",
+    "dev": "pnpm --filter @neros/tui dev",
     "web:dev": "pnpm --filter @neros/web dev",
     "web:build": "pnpm --filter @neros/web build",
-    "web:typecheck": "pnpm --filter @neros/web typecheck",
-    "build": "tsup",
-    "start": "node dist/cli.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "ink": "^7.0.5",
-    "react": "^19.2.7",
-    "undici": "^8.4.1",
-    "zod": "^4.4.3"
+    "tui:dev": "pnpm --filter @neros/tui dev",
+    "tui:build": "pnpm --filter @neros/tui build"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "@types/react": "^19.2.17",
-    "tsup": "^8.5.1",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^6.0.3"
   }
 }

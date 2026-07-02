@@ -3,7 +3,7 @@ import { readdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Box, Text, useInput } from "ink";
-import { installSkillHubSkill } from "../../core/tools/builtin/skillhub.js";
+import { installSkillHubSkill } from "@neros/core/tools/builtin/skillhub.js";
 
 type Props = {
   onSubmit: (content: string) => void;

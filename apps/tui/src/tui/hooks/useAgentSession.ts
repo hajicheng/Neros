@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { AgentRuntime } from "../../core/agent/AgentRuntime.js";
-import type { AgentEvent } from "../../core/events/AgentEvent.js";
+import type { AgentRuntime } from "@neros/core";
+import type { AgentEvent } from "@neros/core";
 import { tuiReducer } from "../state/reducer.js";
 import { initialState, type TuiState } from "../state/types.js";
 

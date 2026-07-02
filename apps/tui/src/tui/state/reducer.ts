@@ -1,4 +1,4 @@
-import type { AgentEvent } from "../../core/events/AgentEvent.js";
+import type { AgentEvent } from "@neros/core";
 import type { TuiState } from "./types.js";
 
 export function tuiReducer(state: TuiState, event: AgentEvent): TuiState {

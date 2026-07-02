@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
-import type { AgentStatus } from "../../core/events/AgentEvent.js";
+import type { AgentStatus } from "@neros/core";
 
 type Props = {
   columns: number;

@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentStatus, TokenUsage } from "../../core/events/AgentEvent.js";
+import type { AgentEvent, AgentStatus, TokenUsage } from "@neros/core";
 
 export type ChatMessageItem = {
   id: string;

@@ -1,5 +1,5 @@
-import type { AgentRuntime } from "../../core/agent/AgentRuntime.js";
-import type { AgentEvent } from "../../core/events/AgentEvent.js";
+import type { AgentRuntime } from "@neros/core";
+import type { AgentEvent } from "@neros/core";
 
 export class TuiAgentAdapter {
   private runtime: AgentRuntime;

@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { render } from "ink";
-import { AgentRuntime } from "../core/agent/AgentRuntime.js";
-import { loadConfig } from "../core/config/loadConfig.js";
+import { AgentRuntime } from "@neros/core";
+import { loadConfig } from "@neros/core";
 import { App } from "../tui/App.js";
 
 function getVersion(): string {

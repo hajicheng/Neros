@@ -1,0 +1,26 @@
+{
+  "name": "@neros/tui",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "neros": "./src/entrypoints/cli.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/entrypoints/cli.ts",
+    "build": "tsup",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@neros/core": "workspace:*",
+    "ink": "^7.0.5",
+    "react": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
