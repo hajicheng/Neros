@@ -107,7 +107,7 @@ export const AGENT_TOOL_META: Record<AgentToolName, { label: string; desc: strin
   desktop_get_screen_info: { label: '屏幕信息', desc: '读取本机屏幕尺寸、鼠标位置和可见窗口标题' },
   desktop_capture_screen: { label: '截取屏幕', desc: '保存本机桌面截图，并返回可供视觉模型查看的图片数据' },
   desktop_mouse: { label: '鼠标操作', desc: '移动、点击、双击、右键、拖拽或滚动本机鼠标' },
-  desktop_keyboard: { label: '键盘操作', desc: '向当前窗口输入文字、按键或发送快捷键' },
+  desktop_keyboard: { label: '键盘操作', desc: '聚焦窗口后输入文字、按键、发送快捷键或诊断键盘权限' },
   desktop_window: { label: '窗口操作', desc: '列出窗口，或按标题/应用名聚焦到前台' },
   app_launch: { label: '启动应用', desc: '打开本机应用、文件、目录或 URL' },
   browser_open: { label: '打开浏览器', desc: '在默认或指定浏览器中打开 URL' },

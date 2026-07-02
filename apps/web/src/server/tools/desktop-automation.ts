@@ -131,33 +131,72 @@ export const desktopMouseTool: ToolDef = {
 
 export const desktopKeyboardTool: ToolDef = {
   name: 'desktop_keyboard',
-  description: 'Send keyboard input to the active host window: type text, press a key, or send a hotkey combo.',
+  description:
+    'Send keyboard input to the active host window: type text, press a key, send a hotkey combo, or diagnose keyboard automation. Can focus a target window and click a target point before typing.',
   parameters: {
     type: 'object',
     required: ['action'],
     properties: {
       action: {
         type: 'string',
-        enum: ['type', 'press', 'hotkey'],
+        enum: ['type', 'press', 'hotkey', 'diagnose'],
         description: 'Keyboard action to perform.',
       },
       text: { type: 'string', description: 'Text to type. Maximum 500 characters.' },
       key: { type: 'string', description: 'Single key to press, such as enter, escape, tab, or a.' },
       keys: { type: 'string', description: 'Hotkey combo such as cmd+l, ctrl+c, alt+tab, or enter.' },
+      targetTitle: { type: 'string', description: 'Optional window/app title substring to focus before sending input.' },
+      clickX: { type: 'number', description: 'Optional x coordinate to click before sending input.' },
+      clickY: { type: 'number', description: 'Optional y coordinate to click before sending input.' },
+      delayMs: { type: 'number', description: 'Optional delay after focusing/clicking before sending input.' },
+      method: {
+        type: 'string',
+        enum: ['auto', 'paste', 'keystroke'],
+        description: 'Typing method. macOS auto uses clipboard paste for Unicode.',
+      },
     },
   },
   async handler(args) {
     const input = asRecord(args)
     const action = readString(input.action)
     if (!action) return toolErr('action is required')
+    if (action === 'diagnose') return toolOk(await diagnoseKeyboardAutomation())
     const text = readString(input.text)
     const key = readString(input.key)
     const keys = readString(input.keys)
+    const targetTitle = readString(input.targetTitle)
+    const clickX = readNumber(input.clickX)
+    const clickY = readNumber(input.clickY)
+    const delayMs = Math.max(0, Math.floor(readNumber(input.delayMs) ?? 0))
+    const methodRaw = readString(input.method)
+    const method = methodRaw === 'paste' || methodRaw === 'keystroke' ? methodRaw : 'auto'
     if (action === 'type' && (text ?? '').length > MAX_TYPE_LENGTH) {
       return toolErr(`text is too long (${text?.length ?? 0} chars, max ${MAX_TYPE_LENGTH})`)
     }
-    await runKeyboardAction(action, { text: text ?? '', key: key ?? '', keys: keys ?? '' })
-    return toolOk({ action, chars: action === 'type' ? text?.length ?? 0 : undefined, key, keys })
+    if (!['type', 'press', 'hotkey'].includes(action)) {
+      return toolErr('action must be type, press, hotkey, or diagnose')
+    }
+    if (targetTitle) {
+      await focusWindow(targetTitle)
+      await sleep(delayMs || 250)
+    }
+    if (clickX !== null || clickY !== null) {
+      requirePoint(clickX, clickY)
+      await runMouseAction('click', { x: clickX, y: clickY, toX: null, toY: null, amount: null })
+      await sleep(delayMs || 150)
+    } else if (delayMs && !targetTitle) {
+      await sleep(delayMs)
+    }
+    await runKeyboardAction(action, { text: text ?? '', key: key ?? '', keys: keys ?? '', method })
+    return toolOk({
+      action,
+      chars: action === 'type' ? text?.length ?? 0 : undefined,
+      key,
+      keys,
+      targetTitle,
+      clicked: clickX !== null && clickY !== null ? { x: clickX, y: clickY } : undefined,
+      method,
+    })
   },
 }
 
@@ -560,21 +599,42 @@ else:
 
 async function runKeyboardAction(
   action: string,
-  input: { text: string; key: string; keys: string },
+  input: { text: string; key: string; keys: string; method?: 'auto' | 'paste' | 'keystroke' },
 ): Promise<void> {
   if (process.platform === 'darwin') return runMacKeyboardAction(action, input)
   if (process.platform === 'win32') return runWindowsKeyboardAction(action, input)
   return runLinuxKeyboardAction(action, input)
 }
 
-async function runMacKeyboardAction(action: string, input: { text: string; key: string; keys: string }): Promise<void> {
+async function runMacKeyboardAction(
+  action: string,
+  input: { text: string; key: string; keys: string; method?: 'auto' | 'paste' | 'keystroke' },
+): Promise<void> {
   if (action === 'type') {
-    await run('osascript', ['-e', 'on run argv', '-e', 'tell application "System Events" to keystroke (item 1 of argv)', '-e', 'end run', input.text])
+    if (!input.text) throw new Error('text is required')
+    if (input.method === 'keystroke') {
+      await run('osascript', [
+        '-e',
+        'on run argv',
+        '-e',
+        'tell application "System Events" to keystroke (item 1 of argv)',
+        '-e',
+        'end run',
+        input.text,
+      ])
+      return
+    }
+    await pasteTextWithClipboardRestore(input.text)
     return
   }
   const combo = parseKeyCombo(action === 'hotkey' ? input.keys : input.key)
   if (!combo.key) throw new Error(action === 'hotkey' ? 'keys is required' : 'key is required')
   const using = macUsingClause(combo.modifiers)
+  const keyCode = macKeyCode(combo.key)
+  if (keyCode !== undefined) {
+    await run('osascript', ['-e', `tell application "System Events" to key code ${keyCode}${using}`])
+    return
+  }
   const keyName = macKeyName(combo.key)
   await run('osascript', ['-e', `tell application "System Events" to keystroke "${escapeAppleScriptString(keyName)}"${using}`])
 }
@@ -763,6 +823,61 @@ function macKeyName(key: string): string {
   return aliases[key] ?? key
 }
 
+function macKeyCode(key: string): number | undefined {
+  const aliases: Record<string, number> = {
+    enter: 36,
+    return: 36,
+    tab: 48,
+    escape: 53,
+    esc: 53,
+    backspace: 51,
+    delete: 117,
+    forwarddelete: 117,
+    left: 123,
+    arrowleft: 123,
+    right: 124,
+    arrowright: 124,
+    down: 125,
+    arrowdown: 125,
+    up: 126,
+    arrowup: 126,
+    home: 115,
+    end: 119,
+    pageup: 116,
+    pagedown: 121,
+    space: 49,
+  }
+  return aliases[key.toLowerCase()]
+}
+
+async function pasteTextWithClipboardRestore(text: string): Promise<void> {
+  const previous = await readMacClipboard().catch(() => null)
+  await writeMacClipboard(text)
+  try {
+    await run('osascript', ['-e', 'tell application "System Events" to keystroke "v" using {command down}'])
+    await sleep(200)
+  } finally {
+    if (previous !== null) {
+      await writeMacClipboard(previous).catch(() => undefined)
+    }
+  }
+}
+
+async function readMacClipboard(): Promise<string> {
+  const { stdout } = await run('pbpaste', [])
+  return stdout
+}
+
+async function writeMacClipboard(text: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn('pbcopy', [], { stdio: ['pipe', 'ignore', 'ignore'] })
+    proc.stdin?.write(text, 'utf8')
+    proc.stdin?.end()
+    proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`pbcopy exited with ${code}`))))
+    proc.on('error', reject)
+  })
+}
+
 function windowsSendKeys(value: string): string {
   const combo = parseKeyCombo(value)
   if (!combo.key) return ''
@@ -785,6 +900,39 @@ function windowsSendKeys(value: string): string {
     delete: '{DELETE}',
   }
   return `${mods}${aliases[combo.key] ?? combo.key}`
+}
+
+async function diagnoseKeyboardAutomation(): Promise<Record<string, unknown>> {
+  const result: Record<string, unknown> = {
+    platform: process.platform,
+    note:
+      process.platform === 'darwin'
+        ? 'If keyboard/mouse input fails, grant Accessibility permission to the app/terminal running Neros, then restart it.'
+        : undefined,
+  }
+  result.windows = await listWindows().catch((error) => ({ error: errorMessage(error) }))
+  result.cursor = await getCursorPosition().catch((error) => ({ error: errorMessage(error) }))
+  if (process.platform === 'darwin') {
+    result.frontmostApp = await getMacFrontmostApp().catch((error) => ({ error: errorMessage(error) }))
+    result.systemEvents = await run('osascript', [
+      '-e',
+      'tell application "System Events" to get name of first application process whose frontmost is true',
+    ])
+      .then(() => ({ ok: true }))
+      .catch((error) => ({ ok: false, error: errorMessage(error) }))
+    result.clipboard = await readMacClipboard()
+      .then((value) => ({ ok: true, chars: value.length }))
+      .catch((error) => ({ ok: false, error: errorMessage(error) }))
+  }
+  return result
+}
+
+async function getMacFrontmostApp(): Promise<string> {
+  const { stdout } = await run('osascript', [
+    '-e',
+    'tell application "System Events" to get name of first application process whose frontmost is true',
+  ])
+  return stdout.trim()
 }
 
 function escapeAppleScriptString(value: string): string {

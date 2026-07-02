@@ -198,6 +198,7 @@ export const useAppStore = create<AppState>()(
 
     setStreamConnected: (connected) =>
       set((s) => {
+        if (s.streamConnected === connected) return
         s.streamConnected = connected
       }),
 
@@ -549,12 +550,14 @@ export const useAppStore = create<AppState>()(
         }
       }),
 
-    applyEvent: (event) =>
+    applyEvent: (event) => {
+      // 高频但不改变前端状态的事件不要进入 Zustand set。
+      // 否则每条 SSE 都会走一轮 store 更新/订阅通知；在 React 外部
+      // store 订阅链较深时，容易表现为 Maximum update depth exceeded。
+      if (event.type === 'heartbeat' || event.type === 'part.end') return
+
       set((s) => {
         switch (event.type) {
-          case 'heartbeat':
-            return
-
           case 'run.start': {
             s.runsByConv[event.conversationId] ??= {}
             s.runsByConv[event.conversationId][event.runId] = {
@@ -689,9 +692,6 @@ export const useAppStore = create<AppState>()(
             }
             return
           }
-
-          case 'part.end':
-            return
 
           case 'tool.call': {
             const msg = s.messages[event.messageId]
@@ -867,7 +867,8 @@ export const useAppStore = create<AppState>()(
           default:
             return
         }
-      }),
+      })
+    },
   })),
 )
 

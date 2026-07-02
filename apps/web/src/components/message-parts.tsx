@@ -562,7 +562,7 @@ function ToolUsePart({
             {completion && (
               <ToolDetailBlock
                 label={completion.isError ? '错误' : '返回'}
-                value={completion.result}
+                value={screenshotResult && !completion.isError ? omitScreenshotBinary(completion.result) : completion.result}
                 tone={completion.isError ? 'error' : 'neutral'}
               />
             )}
@@ -818,6 +818,12 @@ function extractScreenshotResult(value: unknown): ScreenshotResultPreview | null
     mimeType: typeof value.mimeType === 'string' ? value.mimeType : undefined,
     size: typeof value.size === 'number' ? value.size : undefined,
   }
+}
+
+function omitScreenshotBinary(value: unknown): unknown {
+  if (!isPlainRecord(value)) return value
+  const { imageDataUrl: _, ...rest } = value
+  return rest
 }
 
 function formatBytes(value: number): string {
